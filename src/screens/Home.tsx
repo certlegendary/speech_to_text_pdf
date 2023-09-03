@@ -30,7 +30,7 @@ const initialData = {
   followup: '',
 }
 const HomeScreen = () => {
-const [formData, setFormData] = useState<TypeFormData>({})
+const [formData, setFormData] = useState<TypeFormData>(initialData)
 const onChangeText = (key: keyof typeof initialData) => (text: string) => {
   setFormData((state) => {
     return {
