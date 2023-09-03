@@ -4,7 +4,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Screens
 import HomeScreen from './src/screens/Home';
-
+import { NativeEventEmitter } from 'react-native';
+const eventEmitter = new NativeEventEmitter();
 const Stack = createNativeStackNavigator();
 
 const App = () => {
@@ -14,7 +15,7 @@ const App = () => {
         <Stack.Screen
           name="Home"
           component={ HomeScreen }
-          options={{title: 'Home', headerShown: false}}
+          options={{title: 'Home', headerShown: false}}          
         />
       </Stack.Navigator>
     </NavigationContainer>
