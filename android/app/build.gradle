@@ -88,6 +88,12 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            storeFile file('my-release-key.keystore')
+            storePassword 'android'
+            keyAlias 'my-key-alias'
+            keyPassword 'android'
+        }
     }
     buildTypes {
         debug {
@@ -96,10 +102,33 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
+    }
+
+    packagingOptions {
+        exclude 'drawable-hdpi-v4/node_modules_reactnavigation_elements_src_assets_backicon'
+        exclude 'drawable-mdpi-v4/node_modules_reactnavigation_elements_src_assets_backicon'
+        exclude 'drawable-mdpi-v4/node_modules_reactnavigation_elements_src_assets_backiconmask'
+        exclude 'drawable-mdpi-v4/src_assets_icons_appointment'
+        exclude 'drawable-mdpi-v4/src_assets_icons_heartbeat'
+        exclude 'drawable-mdpi-v4/src_assets_icons_idea'
+        exclude 'drawable-mdpi-v4/src_assets_icons_medicine'
+        exclude 'drawable-mdpi-v4/src_assets_icons_plus'
+        exclude 'drawable-mdpi-v4/src_assets_icons_rectangle'
+        exclude 'drawable-mdpi-v4/src_assets_icons_report'
+        exclude 'drawable-mdpi-v4/src_assets_icons_voice'
+        exclude 'drawable-mdpi-v4/src_assets_images_bgblue'
+        exclude 'drawable-xhdpi-v4/node_modules_reactnavigation_elements_src_assets_backicon'
+        exclude 'drawable-xxhdpi-v4/node_modules_reactnavigation_elements_src_assets_backicon'
+        exclude 'drawable-xxxhdpi-v4/node_modules_reactnavigation_elements_src_assets_backicon'
+
+    }
+
+    aaptOptions {
+        cruncherEnabled = false
     }
 }
 
