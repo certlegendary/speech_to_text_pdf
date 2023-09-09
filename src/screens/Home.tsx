@@ -1,14 +1,12 @@
-import { View, Text, ImageBackground, StyleSheet, Image, TextInput, ScrollView, Button, } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, ImageBackground, StyleSheet, Image, TextInput, ScrollView, Button, GestureResponderEvent, Alert, TouchableOpacity } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
 import PrescriptionItem from '../components/PrescriptionItem';
-import Voice, {
-  SpeechRecognizedEvent,
-  SpeechResultsEvent,
-  SpeechErrorEvent,
-} from '@react-native-voice/voice';
-import { generatePDF } from '../actions/Pdfmanagement'
+import { generatePDF, uploadAudio } from '../actions/HomeAction'
+import { request, PERMISSIONS, requestMultiple } from 'react-native-permissions'
+import AudioRecorderPlayer, { AudioEncoderAndroidType, AudioSourceAndroidType, AVEncoderAudioQualityIOSType, AVEncodingOption } from 'react-native-audio-recorder-player';
 
-const voiceImage = require('../assets/icons/voice.png');
+const audiorecorderPlayer = new AudioRecorderPlayer();
+
 const backgroundImg = require('../assets/images/bg-blue.png');
 const VitalIcon = require('../assets/icons/heart-rate.png');
 const complaintIcon = require('../assets/icons/report.png');
@@ -36,20 +34,28 @@ const initialData = {
   followup: '',
 }
 
-const userData = {
-  name: 'xxx',
-  gender: 'xxx',
-  tel: 'xxx-xxx-xxxx',
-  address: 'xxxxxxxxxxxx',
+type PaitentData = {
+  name: string,
+  gender: string,
+  tel: string,
+  address: string,
+  age?: string,
+}
+
+const initialPatientData = {
+  name: 'David',
+  gender: 'Male',
+  tel: '808-325-2852',
+  address: 'London, UK',
 }
 
 const hostpital = "GojoRx";
 
 const HomeScreen = () => {
   const date = new Date();
-  console.log(date)
   const [formData, setFormData] = useState<TypeFormData>(initialData)
-  const onChangeText = (key: keyof typeof initialData) => (text: string) => {
+  const [patientData, setPatientData] = useState<PaitentData>(initialPatientData)
+  const onChangeText = (key: keyof TypeFormData) => (text: string) => {
     setFormData((state) => {
       return {
         ...state,
@@ -57,129 +63,111 @@ const HomeScreen = () => {
       }
     })
   }
+  const [granted, setGranted] = useState<Boolean>(false);
+  const onPressOut = (key: keyof TypeFormData) => async (e: GestureResponderEvent) => {
+    if (!granted) {
+      return;
+    }
+    let url
+    try {
+      url = await audiorecorderPlayer.stopRecorder();
+      audiorecorderPlayer.removeRecordBackListener();
 
-  const onTouchEnd = (key: keyof typeof initialData) => async () => {
-    await _stopRecognizing();
-    await _cancelRecognizing();
-    setFormData({
-      ...formData,
-      [key]: results,
-    })
-    console.log("stop", key)
+    } catch (error) {
+      console.log(error)
+      console.log('recorder error')
+    }
+    if (url) {
+      const result = await uploadAudio(url)
+      setFormData({
+        ...formData,
+        [key]: result,
+      })
+    }
   }
 
-  const onTouchStart = (key: keyof typeof initialData) => async () => {
-    _clearState();
-    await _cancelRecognizing();
-    _startRecognizing()
-    console.log('start:', key)
-  }
-  const [results, setResults] = useState("");
-
-  useEffect(() => {
-    Voice.onSpeechStart = onSpeechStart;
-    Voice.onSpeechRecognized = onSpeechRecognized;
-    Voice.onSpeechEnd = onSpeechEnd;
-    Voice.onSpeechError = onSpeechError;
-    Voice.onSpeechResults = onSpeechResults;
-    Voice.onSpeechPartialResults = onSpeechPartialResults;
-
-    return () => {
-      Voice.destroy().then(Voice.removeAllListeners);
+  const onPressIn = (key: keyof TypeFormData) => async (e: GestureResponderEvent) => {
+    if (!granted) {
+      return;
+    }
+    const audioSet = {
+      AudioEncoderAndroid: AudioEncoderAndroidType.AAC,
+      AudioSourceAndroid: AudioSourceAndroidType.MIC,
+      AVEncoderAudioQualityKeyIOS: AVEncoderAudioQualityIOSType.high,
+      AVNumberOfChannelsKeyIOS: 2,
+      AVFormatIDKeyIOS: AVEncodingOption.aac,
     };
-  }, []);
+    await audiorecorderPlayer.startRecorder(undefined, audioSet);
+  }
 
+  const startRecordingName = async (e: GestureResponderEvent) => {
+    const audioSet = {
+      AudioEncoderAndroid: AudioEncoderAndroidType.AAC,
+      AudioSourceAndroid: AudioSourceAndroidType.MIC,
+      AVEncoderAudioQualityKeyIOS: AVEncoderAudioQualityIOSType.high,
+      AVNumberOfChannelsKeyIOS: 2,
+      AVFormatIDKeyIOS: AVEncodingOption.aac,
+    };
+    await audiorecorderPlayer.startRecorder(undefined, audioSet);
+  }
 
-  const onSpeechStart = (e: any) => {
-    console.log('onSpeechStart: ', e);
-    // setStarted('√');
-  };
-
-  const onSpeechRecognized = (e: SpeechRecognizedEvent) => {
-    console.log('onSpeechRecognized: ', e);
-    // setRecognized('√');
-
-  };
-
-  const onSpeechEnd = (e: any) => {
-    console.log('onSpeechEnd: ', e);
-    // setEnd('√');
-  };
-
-  const onSpeechError = (e: SpeechErrorEvent) => {
-    console.log('onSpeechError: ', e);
-    // setError(JSON.stringify(e.error));
-    if (e.error?.code === '7') {
-      _startRecognizing();
+  const stopRecordingName = async (e: GestureResponderEvent) => {
+    if (!granted) {
+      return;
     }
-  };
-
-  const onSpeechResults = (e: SpeechResultsEvent) => {
-    console.log('onSpeechResults: ', e);
-    setResults(state => {
-      if (e.value && e.value[0]) {
-        return state + " " + e.value[0];
-      } else {
-        return state;
-      }
-    })
-
-    _startRecognizing();
-
-  };
-
-  const onSpeechPartialResults = (e: SpeechResultsEvent) => {
-
-  };
-
-  const _startRecognizing = async () => {
-
+    let url
     try {
-      await Voice.start('en-US');
-      console.log('called start');
-    } catch (e) {
-      console.error(e);
-    }
-  };
+      url = await audiorecorderPlayer.stopRecorder();
+      audiorecorderPlayer.removeRecordBackListener();
 
-  const _stopRecognizing = async () => {
-    try {
-      await Voice.stop();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.log('recorder error')
     }
-  };
-
-  const _cancelRecognizing = async () => {
-    try {
-      await Voice.cancel();
-    } catch (e) {
-      console.error(e);
+    if (url) {
+      const result = await uploadAudio(url)
+      setPatientData({
+        ...patientData,
+        name: result,
+      })
     }
-  };
+  }
 
-  const _destroyRecognizer = async () => {
-    try {
-      await Voice.destroy();
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  const permissionInit = useCallback(async () => {
 
-  const _clearState = () => {
-    setResults("");
-  };
+    await requestMultiple([
+      PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE,
+      PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
+      PERMISSIONS.ANDROID.RECORD_AUDIO,
+    ])
+    setGranted(true)
+  }, [])
+  useEffect(() => {
+    permissionInit();
+  }, [permissionInit]);
 
   const onSubmit = () => {
     generatePDF({
-      ...userData,
+      ...patientData,
       hospital: hostpital,
-      vitals: 'vitals',
-      complaint: 'complaint',
-      diagnosis: 'diagnosis',
-      medications: 'medication'
+      vitals: formData.vitals,
+      complaint: formData.complaint,
+      diagnosis: formData.diagnosis,
+      medications: formData.medication,
+      date: date.toDateString(),
+      followUp: formData.followup,
+      advice: formData.advice,
     })
   }
+
+  const changePatient = (key: keyof PaitentData) => (text: string) => {
+    setPatientData({
+      ...patientData,
+      [key]: text
+    })
+  }
+
+
+
   return (
     <ScrollView>
 
@@ -201,31 +189,43 @@ const HomeScreen = () => {
             <Text style={{ color: "#245F9C", fontWeight: '700', fontSize: 14 }} >
               PATIENT DETAILS
             </Text>
-            <Text style={styles.font12}>
-              Name:
-            </Text>
             <View style={{
               display: 'flex',
-              flexDirection: "row"
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 3
             }}>
               <Text style={styles.font12}>
-                Ange:
+                Name:
               </Text>
-              <Text style={[styles.font12, { width: 40 }]}>
-
+              <TextInput style={[styles.font12, { padding: 0, margin: 0 }]} value={patientData.name} onChangeText={changePatient('name')} />
+            </View>
+            <View style={{
+              display: 'flex',
+              flexDirection: "row",
+              alignItems: 'center',
+              gap: 5
+            }}>
+              <Text style={styles.font12}>
+                Age:
               </Text>
+              <TextInput style={[styles.font12, { padding: 0, margin: 0 }]} value={patientData.age} onChangeText={changePatient('age')} />
               <Text style={styles.font12}>
                 Gender:
               </Text>
-              <Text style={styles.font12}>
-
-              </Text>
+              <TextInput style={[styles.font12, { padding: 0, margin: 0 }]} value={patientData.gender} onChangeText={changePatient('gender')} />
             </View>
           </View>
-          <View>
-            <Image source={require('../assets/icons/voice.png')} />
-          </View>
 
+          <View>
+            <TouchableOpacity
+              onPressOut={stopRecordingName}
+              onPressIn={startRecordingName}
+              activeOpacity={.6}
+            >
+              <Image source={require('../assets/icons/voice.png')} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={{
@@ -272,7 +272,7 @@ const HomeScreen = () => {
                 justifyContent: 'space-between'
               }}>
                 <Text style={[styles.textBlack, styles.font12]}>
-                  Rashia Singh, Female, 31
+                  {patientData.name}, {patientData.gender}, {patientData.age}
                 </Text>
                 <Text style={[styles.textBlack, styles.font12]}>
                   Date: 28/10/23
@@ -283,48 +283,49 @@ const HomeScreen = () => {
                 iconImgSource={VitalIcon}
                 text={formData.vitals}
                 onChangeText={onChangeText('vitals')}
-                onTouchEnd={onTouchEnd('vitals')}
-                onTouchStart={onTouchStart('vitals')}
+                onPressIn={onPressIn('vitals')}
+                onPressOut={onPressOut('vitals')}
               />
               <PrescriptionItem
                 title='Complaint'
                 iconImgSource={complaintIcon}
                 text={formData.complaint}
                 onChangeText={onChangeText('complaint')}
-                onTouchEnd={onTouchEnd('complaint')}
-                onTouchStart={onTouchStart('complaint')}
+                onPressIn={onPressIn('complaint')}
+                onPressOut={onPressOut('complaint')}
               />
               <PrescriptionItem
                 title='Diagnosis'
                 iconImgSource={DiagnosisIcon}
                 text={formData.diagnosis}
                 onChangeText={onChangeText('diagnosis')}
-                onTouchEnd={onTouchEnd('diagnosis')}
-                onTouchStart={onTouchStart('diagnosis')}
+                onPressIn={onPressIn('diagnosis')}
+                onPressOut={onPressOut('diagnosis')}
               />
+
               <PrescriptionItem
                 title='Medications'
                 iconImgSource={MedicationIcon}
                 text={formData.medication}
                 onChangeText={onChangeText('medication')}
-                onTouchEnd={onTouchEnd('medication')}
-                onTouchStart={onTouchStart('medication')}
+                onPressIn={onPressIn('medication')}
+                onPressOut={onPressOut('medication')}
               />
               <PrescriptionItem
                 title='Advice'
                 iconImgSource={AdviceIcon}
                 text={formData.advice}
                 onChangeText={onChangeText('advice')}
-                onTouchEnd={onTouchEnd('advice')}
-                onTouchStart={onTouchStart('advice')}
+                onPressIn={onPressIn('advice')}
+                onPressOut={onPressOut('advice')}
               />
               <PrescriptionItem
                 title='Follow Up'
                 iconImgSource={FollowupIcon}
                 text={formData.followup}
                 onChangeText={onChangeText('followup')}
-                onTouchEnd={onTouchEnd('followup')}
-                onTouchStart={onTouchStart('followup')}
+                onPressIn={onPressIn('followup')}
+                onPressOut={onPressOut('followup')}
               />
 
               <View style={{
@@ -344,14 +345,15 @@ const HomeScreen = () => {
           padding: 20,
           display: 'flex',
           flexDirection: 'row',
-          justifyContent: 'center'
+          justifyContent: 'center',
+
         }}>
-          <Button title='Create Prescription' onPress={onSubmit}/>
+          <Button title='Create Prescription' onPress={onSubmit} />
 
         </View>
 
       </ImageBackground>
-    </ScrollView>
+    </ScrollView >
   )
 }
 
@@ -382,4 +384,5 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   }
 })
+
 export default HomeScreen;

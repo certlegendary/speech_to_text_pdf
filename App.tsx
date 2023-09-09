@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 // Screens
 import HomeScreen from './src/screens/Home';
 import { NativeEventEmitter } from 'react-native';
+import RegisterScreen from './src/screens/Register';
 const eventEmitter = new NativeEventEmitter();
 const Stack = createNativeStackNavigator();
 
@@ -12,6 +13,11 @@ const App = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator>
+        <Stack.Screen
+          name="Register"
+          component={ RegisterScreen }
+          options={{title: 'Register', headerShown: false}}          
+        />
         <Stack.Screen
           name="Home"
           component={ HomeScreen }
