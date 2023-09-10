@@ -15,7 +15,6 @@ const MedicationIcon = require('../assets/icons/medicine.png');
 const AdviceIcon = require('../assets/icons/idea.png');
 const FollowupIcon = require('../assets/icons/appointment.png');
 const signatureImage = require('../assets/icons/Rectangle.png');
-
 type TypeFormData = {
   vitals: string,
   complaint: string,
@@ -79,9 +78,11 @@ const HomeScreen = () => {
     }
     if (url) {
       const result = await uploadAudio(url)
+      const originText = formData[key];
+
       setFormData({
         ...formData,
-        [key]: result,
+        [key]: originText + " " + result,
       })
     }
   }
